@@ -3,8 +3,8 @@ from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth.models import User
 from blog.models import Category, Post
 from constants import DISPLAY_ON_MAIN_PAGE
-from django import forms
-from django.views.generic import CreateView
+
+
 
 
 def index(request):
@@ -20,7 +20,7 @@ def category_posts(request, category_slug):
                                  .objects
                                  .category_post_filter(category_slug))
     post_list = Post.objects.post_filter().filter(category=category)
-    context = {"category": category, "post_list": post_list}
+    context = {"category": category, "page_obj": post_list}
     return render(request, "blog/category.html", context)
 
 
@@ -39,16 +39,15 @@ def profile(request, username):
     return render(request, "blog/profile.html", context)
 
 
-class PostCreateView(CreateView):
-    model = Post
-    form_class = CreatePost
-    exclude = ('is_published',
-               'created_at'
-               )
-    widgets = {'pub_date': forms.DateInput(attrs={'type': 'date'})}
-    template_name = 'blog/create.html'
-
-
+def create(request):
+    form = CreatePost(request.POST or None)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect('blog:profile', username=request.user.username)
+    context = {'form': form}
+    return render(request, "blog/user.html", context)
 
 def edit_profile(request, username):
     instance = get_object_or_404(User, username=username)

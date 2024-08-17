@@ -17,7 +17,7 @@ urlpatterns = [
          name='password_change'),
     path('profile/<str:username>/password/', views.password_change,
          name='password'),
-    path('posts/create_post/', views.PostCreateView.as_view(),
+    path('posts/create_post/', views.create,
          name='create_post'),
 ]
 
