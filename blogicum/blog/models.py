@@ -1,9 +1,9 @@
 from datetime import datetime
-from django.urls import reverse
+
 from django.contrib.auth import get_user_model
 from django.db import models
 
-from constants import MAX_LENGTH
+from constants import MAX_LENGTH, MINI_TEXT
 
 User = get_user_model()
 
@@ -107,6 +107,7 @@ class Post(PublishedModel):
         null=True,
         verbose_name='Категория',
     )
+    image = models.ImageField('Фото', upload_to='post_images', blank=True)
     objects = PostQuerySet.as_manager()
 
     class Meta(PublishedModel.Meta):
@@ -116,3 +117,28 @@ class Post(PublishedModel):
 
     def __str__(self):
         return self.title
+
+    def comment_count(self):
+        return self.comments.count()
+
+
+class Comment(PublishedModel):
+    text = models.TextField('Текст')
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        verbose_name='Автор публикации'
+    )
+    post = models.ForeignKey(
+        Post,
+        on_delete=models.CASCADE,
+        verbose_name='Пост'
+    )
+
+    class Meta(PublishedModel.Meta):
+        default_related_name = 'comments'
+        verbose_name = 'комментарий'
+        verbose_name_plural = 'комментарии'
+
+    def str(self):
+        return self.text[:MINI_TEXT]
