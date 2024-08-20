@@ -1,4 +1,5 @@
 
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.forms import UserCreationForm
 from django.urls import include, path, reverse_lazy
@@ -22,3 +23,9 @@ urlpatterns = [
         name='registration',
     ),
 ]
+
+
+if settings.DEBUG:
+    import debug_toolbar
+    urlpatterns += (path('__debug__/', include(debug_toolbar.urls)),)
+

@@ -1,9 +1,9 @@
 from datetime import datetime
 
+from constants import MAX_LENGTH, MINI_TEXT
 from django.contrib.auth import get_user_model
 from django.db import models
-
-from constants import MAX_LENGTH, MINI_TEXT
+from django.db.models import Count
 
 User = get_user_model()
 
@@ -16,6 +16,9 @@ class PostQuerySet(models.QuerySet):
             category__is_published=True,
             pub_date__lte=now,)
 
+    def comment_count(self):
+        return self.annotate(comment_count=Count('comments'))
+
 
 class CategoryQuerySet(models.QuerySet):
     def category_post_filter(self, category_slug):
@@ -24,12 +27,7 @@ class CategoryQuerySet(models.QuerySet):
             is_published=True)
 
 
-class PublishedModel(models.Model):
-    is_published = models.BooleanField(
-        'Опубликовано',
-        default=True,
-        help_text='Снимите галочку, чтобы скрыть публикацию.'
-    )
+class DefaultModel(models.Model):
     created_at = models.DateTimeField(
         'Добавлено',
         auto_now_add=True,
@@ -37,7 +35,17 @@ class PublishedModel(models.Model):
 
     class Meta:
         abstract = True
-        ordering = ('-created_at',)
+
+
+class PublishedModel(DefaultModel):
+    is_published = models.BooleanField(
+        'Опубликовано',
+        default=True,
+        help_text='Снимите галочку, чтобы скрыть публикацию.'
+    )
+
+    class Meta:
+        abstract = True
 
 
 class Location(PublishedModel):
@@ -46,7 +54,7 @@ class Location(PublishedModel):
         max_length=MAX_LENGTH
     )
 
-    class Meta(PublishedModel.Meta):
+    class Meta:
         verbose_name = 'местоположение'
         verbose_name_plural = 'Местоположения'
 
@@ -68,7 +76,7 @@ class Category(PublishedModel):
 
     objects = CategoryQuerySet.as_manager()
 
-    class Meta(PublishedModel.Meta):
+    class Meta:
         verbose_name = 'категория'
         verbose_name_plural = 'Категории'
 
@@ -109,8 +117,9 @@ class Post(PublishedModel):
     )
     image = models.ImageField('Фото', upload_to='post_images', blank=True)
     objects = PostQuerySet.as_manager()
+    comments_count = Count('comments', distinct=True)
 
-    class Meta(PublishedModel.Meta):
+    class Meta:
         default_related_name = 'posts'
         verbose_name = 'публикация'
         verbose_name_plural = 'Публикации'
@@ -118,11 +127,8 @@ class Post(PublishedModel):
     def __str__(self):
         return self.title
 
-    def comment_count(self):
-        return self.comments.count()
 
-
-class Comment(PublishedModel):
+class Comment(DefaultModel):
     text = models.TextField('Текст')
     author = models.ForeignKey(
         User,
@@ -135,7 +141,7 @@ class Comment(PublishedModel):
         verbose_name='Пост'
     )
 
-    class Meta(PublishedModel.Meta):
+    class Meta:
         default_related_name = 'comments'
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
