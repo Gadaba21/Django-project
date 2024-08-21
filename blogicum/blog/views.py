@@ -1,26 +1,11 @@
-from blog.forms import CommentForm, EditProfileForm, PostForm
-from blog.models import Category, Comment, Post
-from constants import DISPLAY_ON_PAGE
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 
-
-def get_post(get_object: bool, post_id: int = 0, filter: bool = False):
-    if filter:
-        return get_object_or_404(
-            Post.objects.post_filter().select_related(
-                'author', 'location', 'category').order_by('-pub_date'),
-            pk=post_id)
-    if get_object:
-        return get_object_or_404(
-            Post.objects.select_related(
-                'author', 'location', 'category').order_by('-pub_date'),
-            pk=post_id)
-    else:
-        return Post.objects.select_related(
-            'author', 'location', 'category').order_by('-pub_date')
+from blog.forms import CommentForm, EditProfileForm, PostForm
+from blog.models import Category, Comment, Post
+from constants import DISPLAY_ON_PAGE
 
 
 def paginator(request, posts):
@@ -28,8 +13,7 @@ def paginator(request, posts):
 
 
 def index(request):
-    page_obj = paginator(request,
-                         get_post(False).comment_count().post_filter())
+    page_obj = paginator(request, Post.published.get_queryset().post_filter())
     return render(request, 'blog/index.html', {'page_obj': page_obj})
 
 
@@ -37,8 +21,8 @@ def category_posts(request, category_slug):
     category = get_object_or_404(Category
                                  .objects
                                  .category_post_filter(category_slug))
-    post_list = get_post(False).filter(
-        category=category).post_filter().comment_count()
+    post_list = category.posts(
+        manager='published').get_queryset().post_filter()
     context = {'category': category, 'page_obj': paginator(request, post_list)}
     return render(request, 'blog/category.html', context)
 
@@ -46,24 +30,20 @@ def category_posts(request, category_slug):
 def post_detail(request, post_id):
     instance = get_object_or_404(Post, pk=post_id)
     if not instance.author == request.user:
-        post = get_post(True, post_id, True)
-    else:
-        post = get_post(True, post_id)
+        instance = get_object_or_404(Post.objects.select().post_filter(),
+                                     pk=post_id)
     form = CommentForm(request.POST or None)
-    comment = Comment.objects.filter(post=post_id).order_by(
-        'created_at').select_related('post')
-    context = {'post': post, 'form': form, 'comments': comment}
+    comment = instance.comments.order_by('created_at')
+    context = {'post': instance, 'form': form, 'comments': comment}
     return render(request, 'blog/detail.html', context)
 
 
 def profile(request, username):
     profile = get_object_or_404(User, username=username)
     if not profile == request.user:
-        posts = get_post(False).filter(
-            author__username=username).post_filter().comment_count()
+        posts = profile.posts(manager='published').get_queryset().post_filter()
     else:
-        posts = get_post(False).filter(
-            author__username=username).comment_count()
+        posts = profile.posts(manager='published').get_queryset()
     context = {'profile': profile, 'page_obj': paginator(request, posts)}
     return render(request, 'blog/profile.html', context)
 
@@ -112,7 +92,7 @@ def add_comment(request, post_id):
 
 
 def delete_post(request, post_id):
-    instance = get_post(True, post_id)
+    instance = get_object_or_404(Post, pk=post_id)
     if instance.author != request.user:
         return redirect('blog:post_detail', post_id)
     form = PostForm(instance=instance)
@@ -124,7 +104,7 @@ def delete_post(request, post_id):
 
 
 def edit_post(request, post_id):
-    instance = get_post(True, post_id)
+    instance = get_object_or_404(Post, pk=post_id)
     if instance.author != request.user:
         return redirect('blog:post_detail', post_id)
     form = PostForm(request.POST or None, instance=instance)

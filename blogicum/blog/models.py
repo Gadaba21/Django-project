@@ -1,30 +1,45 @@
 from datetime import datetime
 
-from constants import MAX_LENGTH, MINI_TEXT
 from django.contrib.auth import get_user_model
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, QuerySet, Manager
+
+from constants import MAX_LENGTH, MINI_TEXT
 
 User = get_user_model()
 
 
-class PostQuerySet(models.QuerySet):
+class PostQuerySet(QuerySet):
     def post_filter(self):
-        now = datetime.now()
         return self.filter(
             is_published=True,
             category__is_published=True,
-            pub_date__lte=now,)
+            pub_date__lte=datetime.now(),)
 
     def comment_count(self):
         return self.annotate(comment_count=Count('comments'))
 
+    def order(self):
+        return self.order_by('-pub_date')
 
-class CategoryQuerySet(models.QuerySet):
+    def select(self):
+        return self.select_related('author', 'location', 'category')
+
+
+class CategoryQuerySet(QuerySet):
     def category_post_filter(self, category_slug):
         return self.filter(
             slug=category_slug,
             is_published=True)
+
+
+class PostManager(Manager):
+    def get_queryset(self) -> PostQuerySet:
+        return (PostQuerySet(self.model)
+                .comment_count()
+                .select()
+                .order()
+                )
 
 
 class DefaultModel(models.Model):
@@ -117,6 +132,7 @@ class Post(PublishedModel):
     )
     image = models.ImageField('Фото', upload_to='post_images', blank=True)
     objects = PostQuerySet.as_manager()
+    published = PostManager()
     comments_count = Count('comments', distinct=True)
 
     class Meta:

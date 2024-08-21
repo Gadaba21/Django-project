@@ -1,7 +1,8 @@
-from blog.models import Comment, Post
-from constants import COMMENT_WINDOW_SIZE
 from django import forms
 from django.contrib.auth.models import User
+
+from blog.models import Comment, Post
+from constants import COMMENT_WINDOW_SIZE
 
 
 class CommentForm(forms.ModelForm):
