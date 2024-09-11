@@ -1,1 +1,1 @@
-# django_sprint4
+# Мой учебный проэкт по gjango
